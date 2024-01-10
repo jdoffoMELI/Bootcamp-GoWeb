@@ -30,7 +30,7 @@ func InitServer() {
 	router.Route("/products", func(r chi.Router) {
 		r.Get("/", productHandler.GetAllProducts())
 		r.Get("/{id}", productHandler.GetProductByID())
-		r.Get("/search/{priceGt}", productHandler.GetProductByPrice())
+		r.Get("/search", productHandler.GetProductByPrice())
 	})
 
 	http.ListenAndServe(":8080", router)

@@ -109,7 +109,8 @@ func (p *ProductHandler) GetProductByID() http.HandlerFunc {
 // [GET] getProductByPrice returns all the products which price is higher than priceGt
 func (p *ProductHandler) GetProductByPrice() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		priceGt, err := strconv.ParseFloat(chi.URLParam(r, "priceGt"), 64)
+		priceGt, err := strconv.ParseFloat(r.URL.Query().Get("priceGt"), 64)
+		// priceGt, err := strconv.ParseFloat(chi.URLParam(r, "priceGt"), 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
