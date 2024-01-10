@@ -28,9 +28,13 @@ func InitServer() {
 	})
 	/* Products endpoints */
 	router.Route("/products", func(r chi.Router) {
+		// GET handlers
 		r.Get("/", productHandler.GetAllProducts())
 		r.Get("/{id}", productHandler.GetProductByID())
 		r.Get("/search", productHandler.GetProductByPrice())
+
+		// POST handlers
+		r.Post("/", productHandler.PostNewProduct())
 	})
 
 	http.ListenAndServe(":8080", router)

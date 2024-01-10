@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 )
 
 // TProduct representens a product on the website.
@@ -43,4 +45,34 @@ func DumpJson(jsonPath string) ([]TProduct, error) {
 		}
 	}
 	return jsonSlice, nil
+}
+
+// HasEmptyValues checks if the product has empty values
+// HasEmptyValues() -> bool
+func (p *TProduct) HasEmptyValues() bool {
+	result := p.Name == "" || p.Quantity == 0 || p.CodeValue == "" || p.Expiration == "" || p.Price == 0.0
+	return result
+}
+
+// HasValidDate checks if the product has a valid date
+// HasValidDate() -> bool
+func (p *TProduct) HasValidDate() bool {
+	tokenSlice := strings.Split(p.Expiration, "/")
+	if len(tokenSlice) != 3 {
+		return false
+	}
+	tokenDay, tokenMonth, tokenYear := tokenSlice[0], tokenSlice[1], tokenSlice[2]
+	day, err := strconv.Atoi(tokenDay)
+	if err != nil {
+		return false
+	}
+	month, err := strconv.Atoi(tokenMonth)
+	if err != nil {
+		return false
+	}
+	year, err := strconv.Atoi(tokenYear)
+	if err != nil {
+		return false
+	}
+	return day > 0 && day <= 31 && month > 0 && month <= 12 && year > 1900 && year <= 2024
 }

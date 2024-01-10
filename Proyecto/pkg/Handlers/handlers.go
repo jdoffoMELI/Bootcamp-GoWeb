@@ -63,6 +63,17 @@ func (p *ProductHandler) InitHandler() error {
 	return nil
 }
 
+// existProductCode checks if there is a product with the given code
+// existProductCode(string) -> bool
+func (p *ProductHandler) existProductCode(code string) bool {
+	for _, value := range p.Products {
+		if value.CodeValue == code {
+			return true
+		}
+	}
+	return false
+}
+
 /* Endpoint function handlers */
 // [GET] getAllProducts returns a slice wich contains all the products avaliable on the website
 func (p *ProductHandler) GetAllProducts() http.HandlerFunc {
@@ -126,5 +137,49 @@ func (p *ProductHandler) GetProductByPrice() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(filteredProducts_json)
+	}
+}
+
+// [POST] postNewProduct creates a new product on the website
+func (p *ProductHandler) PostNewProduct() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var product Product.TProduct
+		err := json.NewDecoder(r.Body).Decode(&product)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		/* Checks for empty values except is_published */
+		if product.HasEmptyValues() {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Empty values are not allowed."))
+			return
+		}
+
+		/* Checks for code_value uniqueness */
+		if p.existProductCode(product.CodeValue) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Product code already exists."))
+			return
+		}
+
+		/* Checks for date correctness */
+		if !product.HasValidDate() {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Invalid date."))
+			return
+		}
+		product.ID = len(p.Products) + 1
+		p.Products = append(p.Products, product)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "Product created successfully.",
+			"data":    product,
+		})
+
 	}
 }
