@@ -2,7 +2,7 @@ package server
 
 import (
 	"net/http"
-	handlers "proyecto/pkg/Handlers"
+	handlers "proyecto/internal/handlers"
 
 	"github.com/go-chi/chi/v5"
 )
