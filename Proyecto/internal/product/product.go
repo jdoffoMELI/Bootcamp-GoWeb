@@ -23,13 +23,11 @@ type TProduct struct {
 // DumpJson creates a slice of products from a json file
 // DumpJson(string) -> ([]TProduct, error)
 // Args:
-//
-//	jsonPath: Json file path.
-//
+//		jsonPath: Json file path.
 // Return:
-//
-//	[]Product: Slice of products retrieved from a json file.
-//	error: 	   Error raised during the execution (if exists).
+//		[]Product: Slice of products retrieved from a json file.
+//		error: 	   Error raised during the execution (if exists).
+
 func DumpJson(jsonPath string) ([]TProduct, error) {
 	var jsonSlice []TProduct
 	data, err := os.ReadFile(jsonPath)
