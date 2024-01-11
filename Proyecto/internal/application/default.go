@@ -46,8 +46,8 @@ func ping(w http.ResponseWriter, r *http.Request) {
 //		[]Product: Slice of products retrieved from a json file.
 //		error: 	   Error raised during the execution (if exists).
 
-func dumpJson(jsonPath string) ([]internal.TProduct, error) {
-	var jsonSlice []internal.TProduct
+func dumpJson(jsonPath string) ([]handlers.ProductJSON, error) {
+	var jsonSlice []handlers.ProductJSON
 	data, err := os.ReadFile(jsonPath)
 	if err != nil {
 		return nil, err
@@ -70,10 +70,19 @@ func dumpJson(jsonPath string) ([]internal.TProduct, error) {
 // Return:
 //		map[int]TProduct: Map of products.
 
-func sliceToMap(slice []internal.TProduct) map[int]internal.TProduct {
+func sliceToMap(slice []handlers.ProductJSON) map[int]internal.TProduct {
 	m := make(map[int]internal.TProduct)
 	for _, v := range slice {
-		m[v.ID] = v
+		product := internal.TProduct{
+			ID:          v.ID,
+			Name:        v.Name,
+			Quantity:    v.Quantity,
+			CodeValue:   v.CodeValue,
+			IsPublished: v.IsPublished,
+			Expiration:  v.Expiration,
+			Price:       v.Price,
+		}
+		m[v.ID] = product
 	}
 	return m
 }
@@ -106,6 +115,15 @@ func (h *ApplicationDefault) Run() {
 
 		// POST handlers
 		r.Post("/", handler.AddNewProduct())
+
+		// PUT handlers
+		r.Put("/", handler.UpdateProduct())
+
+		// PATCH handlers
+		r.Patch("/{id}", handler.UpdateProductPartial())
+
+		// DELETE handlers
+		r.Delete("/{id}", handler.DeleteProduct())
 	})
 
 	/* Intialize the server */

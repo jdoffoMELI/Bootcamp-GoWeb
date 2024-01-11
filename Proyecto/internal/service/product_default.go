@@ -152,3 +152,45 @@ func (p *ProductServiceDefault) InsertNewProduct(product *internal.TProduct) err
 		return err
 	}
 }
+
+// UpdateProduct updates a product it if it already exists
+// UpdateProduct(product internal.TProduct) -> error
+// Args:
+//		product: Product to insert or update
+// Return:
+//		error: Error raised during the execution (if exists)
+
+func (p *ProductServiceDefault) UpdateProduct(product *internal.TProduct) error {
+	/* Empty fields validation */
+	if emptyFields := EmptyValues(*product); len(emptyFields) != 0 {
+		return fmt.Errorf("%w: %s", internal.ErrEmptyField, strings.Join(emptyFields, ", "))
+	}
+
+	/* Date validation */
+	if !validateDate(product.Expiration) {
+		return internal.ErrInvalidDate
+	}
+
+	/* Insert the new product into the repository */
+	if err := p.repository.UpdateProduct(product); err == internal.ErrProductCodeAlreadyExists {
+		return internal.ErrProductAlreadyExists
+	} else {
+		return err
+	}
+}
+
+// DeleteProduct deletes a product from the repository
+// DeleteProduct(id int) -> error
+// Args:
+//		id: Product id
+// Return:
+//		error: Error raised during the execution (if exists)
+
+func (p *ProductServiceDefault) DeleteProduct(id int) error {
+	/* Delete the product from the repository */
+	if err := p.repository.DeleteProduct(id); err == internal.ErrProductNotFound {
+		return internal.ErrProductNotExists
+	} else {
+		return err
+	}
+}

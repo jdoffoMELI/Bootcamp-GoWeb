@@ -16,6 +16,9 @@ type ProductHandler struct {
 	ProductService internal.ProductService // Product service instance
 }
 
+/* product field names from JSON format */
+var productFields = []string{"id", "name", "quantity", "code_value", "is_published", "expiration", "price"}
+
 // NewProductHandler creates a new default valued productHandler
 // NewProductHandler(ps internal.ProductService) -> *ProductHandler
 // Args:
@@ -54,7 +57,6 @@ type BodyRequestProductJSON struct {
 
 // GetAllProducts returns a slice wich contains all the products avaliable on the website
 // Url params: none
-
 func (p *ProductHandler) GetAllProducts() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		productsJSON := p.ProductService.GetAllProducts()
@@ -65,8 +67,8 @@ func (p *ProductHandler) GetAllProducts() http.HandlerFunc {
 
 // GetProductByID search a product by ID and return if there is a match.
 // URL params:
-//		id (Numeric): ID of the desirable product.
-
+//
+//	id (Numeric): ID of the desirable product.
 func (p *ProductHandler) GetProductByID() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		/* Retrieve the id from the url */
@@ -96,8 +98,8 @@ func (p *ProductHandler) GetProductByID() http.HandlerFunc {
 
 // GetProductByPrice returns all the products which price is higher than priceGt
 // URL params:
-//		priceGt (Numeric): Price to filter by.
-
+//
+//	priceGt (Numeric): Price to filter by.
 func (p *ProductHandler) GetProductByPrice() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		/* Retrieve the priceGt from the url */
@@ -115,7 +117,6 @@ func (p *ProductHandler) GetProductByPrice() http.HandlerFunc {
 // AddNewProduct creates a new product on the website
 // URL params : none
 // Body params: BodyRequestProductJSON
-
 func (p *ProductHandler) AddNewProduct() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body BodyRequestProductJSON
@@ -167,5 +168,174 @@ func (p *ProductHandler) AddNewProduct() http.HandlerFunc {
 			"data":    productJSON,
 			"message": "Product created successfully.",
 		})
+	}
+}
+
+// isProductBodyComplete checks if the body request is complete
+// Args:
+//
+//	fields: map[string]any
+//
+// Return:
+//
+//	bool: true if the body is complete, false otherwise
+func isProductBodyComplete(fields map[string]any) bool {
+	for _, value := range productFields {
+		if _, ok := fields[value]; !ok {
+			return false
+		}
+	}
+	return true
+
+}
+
+// UpdateProduct update a product on the website
+// URL params : none
+// Body params: ProductJSON
+func (p *ProductHandler) UpdateProduct() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		/* Check if the request body is complete */
+		var fields map[string]any
+		err := request.JSON(r, &fields)
+		if err != nil {
+			response.Text(w, http.StatusBadRequest, "Invalid body.")
+			return
+		}
+		if !isProductBodyComplete(fields) {
+			response.Text(w, http.StatusBadRequest, "Invalid body.")
+			return
+		}
+
+		/* Serialize to internal.TProduct */
+		product := internal.TProduct{
+			ID:          int(fields["id"].(float64)),
+			Name:        fields["name"].(string),
+			Quantity:    int(fields["quantity"].(float64)),
+			CodeValue:   fields["code_value"].(string),
+			IsPublished: fields["is_published"].(bool),
+			Expiration:  fields["expiration"].(string),
+			Price:       fields["price"].(float64),
+		}
+
+		/* Update the product into repository */
+		err = p.ProductService.UpdateProduct(&product)
+		if err != nil {
+			switch {
+			case errors.Is(err, internal.ErrProductAlreadyExists):
+				response.Text(w, http.StatusBadRequest, "Product code already exists.")
+				return
+			default:
+				response.Text(w, http.StatusInternalServerError, "Internal server error.")
+				return
+			}
+		}
+
+		/* Send the response to the client */
+		response.JSON(w, http.StatusCreated, map[string]any{
+			"data":    product,
+			"message": "Product updated successfully.",
+		})
+	}
+}
+
+// UpdateProduct partially updates a product on the website
+// URL params : id
+// Body params: BodyRequestProductJSON
+func (p *ProductHandler) UpdateProductPartial() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		/* Retrieve the id from the url */
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			response.Text(w, http.StatusBadRequest, "Invalid ID.")
+			return
+		}
+
+		/* Retrieve the fields from the request body */
+		var fields map[string]any
+		err = request.JSON(r, &fields)
+		if err != nil {
+			response.Text(w, http.StatusBadRequest, "Invalid body.")
+			return
+		}
+
+		/* Retrieve the Product by ID */
+		product, err := p.ProductService.GetProductByID(id)
+		if err != nil {
+			switch {
+			case errors.Is(err, internal.ErrProductNotExists):
+				response.Text(w, http.StatusNotFound, "Product not found.")
+				return
+			default:
+				response.Text(w, http.StatusInternalServerError, "Internal server error.")
+				return
+			}
+		}
+
+		/* Update the product fields */
+		for key, value := range fields {
+			switch key {
+			case "name":
+				product.Name = value.(string)
+			case "quantity":
+				product.Quantity = int(value.(float64))
+			case "code_value":
+				product.CodeValue = value.(string)
+			case "is_published":
+				product.IsPublished = value.(bool)
+			case "expiration":
+				product.Expiration = value.(string)
+			case "price":
+				product.Price = value.(float64)
+			default:
+				response.Text(w, http.StatusBadRequest, "Invalid body unpespected field: "+key)
+				return
+			}
+		}
+
+		/* Update the product */
+		err = p.ProductService.UpdateProduct(&product)
+		if err != nil {
+			switch {
+			case errors.Is(err, internal.ErrProductNotExists):
+				response.Text(w, http.StatusNotFound, "Product not found.")
+				return
+			default:
+				response.Text(w, http.StatusInternalServerError, "Internal server error.")
+				return
+			}
+		}
+
+		/* Send the response to the client */
+		response.JSON(w, http.StatusOK, map[string]any{
+			"message": "Product updated successfully.",
+		})
+	}
+}
+
+// DeleteProduct deletes a product on the website
+// URL params : id
+// Body params: ProductJSON
+func (p *ProductHandler) DeleteProduct() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		/* Retrieve the id from the url */
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			response.Text(w, http.StatusBadRequest, "Invalid ID.")
+			return
+		}
+		/* Delete the product by id */
+		err = p.ProductService.DeleteProduct(id)
+		if err != nil {
+			switch {
+			case errors.Is(err, internal.ErrProductNotExists):
+				response.Text(w, http.StatusNotFound, "Product not found.")
+				return
+			default:
+				response.Text(w, http.StatusInternalServerError, "Internal server error.")
+				return
+			}
+		}
+		/* Send the response to the client */
+		response.Text(w, http.StatusOK, "Product deleted successfully.")
 	}
 }

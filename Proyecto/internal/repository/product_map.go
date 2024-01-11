@@ -1,6 +1,8 @@
 package repository
 
-import "proyecto/internal"
+import (
+	"proyecto/internal"
+)
 
 type ProductMap struct {
 	db     map[int]internal.TProduct // Database [product's id] -> product
@@ -68,6 +70,22 @@ func (p *ProductMap) GetProductByPriceGt(price float64) []internal.TProduct {
 	return productSlice
 }
 
+// productCodeExist checks if a product's code already exists in the database
+// productCodeExist(code string) -> bool
+// Args:
+//		code: Product's code to check
+// Return:
+//		bool: True if the product's code already exists in the database, false otherwise
+
+func (p *ProductMap) productCodeExist(code string) bool {
+	for _, value := range p.db {
+		if value.CodeValue == code {
+			return true
+		}
+	}
+	return false
+}
+
 // InsertNewProduct inserts a new product in the database
 // InsertNewProduct(product internal.TProduct) -> error
 // Args:
@@ -77,14 +95,54 @@ func (p *ProductMap) GetProductByPriceGt(price float64) []internal.TProduct {
 
 func (p *ProductMap) InsertNewProduct(product *internal.TProduct) error {
 	/* Check if the product's code already exist */
-	for _, value := range p.db {
-		if value.CodeValue == product.CodeValue {
-			return internal.ErrProductCodeAlreadyExists
-		}
+	if p.productCodeExist(product.CodeValue) {
+		return internal.ErrProductCodeAlreadyExists
 	}
+
 	/* Insert the new product */
 	p.lastID++                // Update the last ID used
 	product.ID = p.lastID     // Update the product's ID
 	p.db[p.lastID] = *product // Insert the new product
 	return nil
+}
+
+// UpdateProduct updates a product it if it already exists on the repository
+// UpdateProduct(product internal.TProduct) -> error
+// Args:
+//
+//	product: Product to insert
+//
+// Return:
+//
+//	error: Error raised during the execution (if exists)
+func (p *ProductMap) UpdateProduct(product *internal.TProduct) error {
+	/* Check if the product exists */
+	_, ok := p.db[product.ID]
+	if !ok {
+		return internal.ErrProductNotFound
+	}
+
+	/* Check for code value consistency */
+	if p.productCodeExist(product.CodeValue) {
+		return internal.ErrProductCodeAlreadyExists
+	}
+	/* Update the product */
+	p.db[product.ID] = *product
+	return nil
+}
+
+// DeleteProduct deletes a product from the database
+// DeleteProduct(id int) -> error
+// Args:
+//		id: Product id
+// Return:
+//		error: Error raised during the execution (if exists)
+
+func (p *ProductMap) DeleteProduct(id int) error {
+	if _, ok := p.db[id]; !ok {
+		return internal.ErrProductNotFound
+	} else {
+		delete(p.db, id)
+		return nil
+	}
 }

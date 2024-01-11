@@ -16,4 +16,6 @@ type ProductService interface {
 	GetProductByID(id int) (TProduct, error)      // Return a product by its id.
 	GetProductByPriceGt(price float64) []TProduct // Return a slice of products with a price greater than the given price.
 	InsertNewProduct(product *TProduct) error     // Add a new product into the repository.
+	UpdateProduct(product *TProduct) error        // Update a product from the repository if it exists.
+	DeleteProduct(id int) error                   // Delete a product from the repository.
 }
