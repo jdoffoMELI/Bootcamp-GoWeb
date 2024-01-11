@@ -94,12 +94,14 @@ func (h *ApplicationDefault) Run() {
 	if err != nil {
 		panic(err)
 	}
-
 	/* Intialize dependencies */
 	repository := repository.NewProductMap(sliceToMap(data), len(data))
 	service := service.NewProductServiceDefault(repository)
 	handler := handlers.NewProductHandler(service)
 	router := chi.NewRouter()
+
+	/* Set environment variables */
+	os.Setenv("TOKEN", "123456") // Token to access data modification operations
 
 	/* Ping endpoints */
 	router.Route("/ping", func(r chi.Router) {

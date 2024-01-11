@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"os"
 	"proyecto/internal"
 	"proyecto/platform/web/request"
 	"proyecto/platform/web/response"
@@ -51,6 +52,18 @@ type BodyRequestProductJSON struct {
 	IsPublished bool    `json:"is_published"` // Product is published (Optional)
 	Expiration  string  `json:"expiration"`   // Product expiration date. Format DD/MM/YYYY
 	Price       float64 `json:"price"`        // Product price.
+}
+
+// isAuthenthicated returns true if the user is authenthicated using a token
+// isAuthenthicated(*http.Request) -> bool
+// Args:
+//		r: HTTP request
+// Return:
+//		bool: True if the user is authenthicated, false otherwise
+
+func (p *ProductHandler) isAuthenthicated(r *http.Request) bool {
+	userToken := r.Header.Get("TOKEN")
+	return userToken == os.Getenv("TOKEN")
 }
 
 /* Endpoint function handlers */
@@ -119,6 +132,13 @@ func (p *ProductHandler) GetProductByPrice() http.HandlerFunc {
 // Body params: BodyRequestProductJSON
 func (p *ProductHandler) AddNewProduct() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		/* Check if the user is authenthicated */
+		if !p.isAuthenthicated(r) {
+			response.Text(w, http.StatusUnauthorized, "Unauthorized.")
+			return
+		}
+
+		/* Retrieve the body from the request */
 		var body BodyRequestProductJSON
 		err := request.JSON(r, &body)
 		if err != nil {
@@ -194,6 +214,12 @@ func isProductBodyComplete(fields map[string]any) bool {
 // Body params: ProductJSON
 func (p *ProductHandler) UpdateProduct() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		/* Check if the user is authenthicated */
+		if !p.isAuthenthicated(r) {
+			response.Text(w, http.StatusUnauthorized, "Unauthorized.")
+			return
+		}
+
 		/* Check if the request body is complete */
 		var fields map[string]any
 		err := request.JSON(r, &fields)
@@ -243,6 +269,12 @@ func (p *ProductHandler) UpdateProduct() http.HandlerFunc {
 // Body params: BodyRequestProductJSON
 func (p *ProductHandler) UpdateProductPartial() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		/* Check if the user is authenthicated */
+		if !p.isAuthenthicated(r) {
+			response.Text(w, http.StatusUnauthorized, "Unauthorized.")
+			return
+		}
+
 		/* Retrieve the id from the url */
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
@@ -317,6 +349,12 @@ func (p *ProductHandler) UpdateProductPartial() http.HandlerFunc {
 // Body params: ProductJSON
 func (p *ProductHandler) DeleteProduct() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		/* Check if the user is authenthicated */
+		if !p.isAuthenthicated(r) {
+			response.Text(w, http.StatusUnauthorized, "Unauthorized.")
+			return
+		}
+
 		/* Retrieve the id from the url */
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
