@@ -1,7 +1,8 @@
 package main
 
-import server "proyecto/internal/server"
+import "proyecto/internal/application"
 
 func main() {
-	server.InitServer()
+	app := application.NewApplicationDefault("localhost:8080")
+	app.Run()
 }
