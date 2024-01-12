@@ -2,11 +2,12 @@ package application
 
 import (
 	"net/http"
+	"os"
 	"proyecto/internal/handlers"
+	"proyecto/internal/middleware"
 	"proyecto/internal/repository"
 	"proyecto/internal/service"
 	"proyecto/internal/storage"
-	"proyecto/platform/web/response"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -28,46 +29,50 @@ func NewApplicationDefault(address string) *ApplicationDefault {
 	}
 }
 
-/* ping endpoint routines */
-// [GET] ping returns "pong" as response
-func ping(w http.ResponseWriter, r *http.Request) {
-	response.Text(w, http.StatusOK, "pong")
-}
-
 // Run runs the application
 func (h *ApplicationDefault) Run() {
 	/* Intialize dependencies */
-	storage := storage.NewProductStorageDefault("/Users/jdoffo/Desktop/Practica Bootcamp/Bootcamp-GoWeb/Proyecto/docs/db/products.json")
+	storagePath := "/Users/jdoffo/Desktop/Practica Bootcamp/Bootcamp-GoWeb/Proyecto/docs/db/products.json"
+	logpath := "/Users/jdoffo/Desktop/Practica Bootcamp/Bootcamp-GoWeb/Proyecto/docs/logs/log.txt"
+	storage := storage.NewProductStorageDefault(storagePath)
 	repository := repository.NewProductMap(storage)
 	service := service.NewProductServiceDefault(repository)
 	handler := handlers.NewProductHandler(service)
 	router := chi.NewRouter()
+	/* Open log file */
+	file, err := os.OpenFile(logpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
 
-	/* Ping endpoints */
-	router.Route("/ping", func(r chi.Router) {
-		r.Get("/", ping)
-	})
+	/* Middlewares */
+	router.Use(middleware.MiddlewareLogger(file))
+	router.Use(middleware.MiddelwareAuthentication)
 
-	/* Product endpoints */
+	/* Public endpoints */
 	router.Route("/products", func(r chi.Router) {
-		// GET handlers
+		/*
+			TODO:
+				No se pueden hacer Route con la misma ruta base por lo que
+			de este modo no se puede aplicar middlewares difenciados por tipo de endpoint.
+				Intente usar group pero esto siempre retorna 405 Method Not Allowed.
+
+				Una solucion posible es aplicar el middleware (de autenticacion) directamente
+			sobre las funciones handler de los endpoins privados, pero esto no es muy elegante.
+		*/
+
+		/* Public Endpoints */
 		r.Get("/", handler.GetAllProducts())
 		r.Get("/{id}", handler.GetProductByID())
 		r.Get("/search", handler.GetProductByPrice())
 
-		// POST handlers
+		/* Private Endpoints */
 		r.Post("/", handler.AddNewProduct())
-
-		// PUT handlers
 		r.Put("/", handler.UpdateProduct())
-
-		// PATCH handlers
 		r.Patch("/{id}", handler.UpdateProductPartial())
-
-		// DELETE handlers
 		r.Delete("/{id}", handler.DeleteProduct())
 	})
 
-	/* Intialize the server */
 	http.ListenAndServe(h.address, router)
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"proyecto/internal"
 	"proyecto/internal/handlers"
+	"proyecto/internal/middleware"
 	"proyecto/internal/repository"
 	"proyecto/internal/service"
 	"proyecto/internal/storage"
@@ -275,7 +276,7 @@ func TestAddNewProduct(t *testing.T) {
 		req = addURLParams(req, map[string]string{"id": "1"})
 		res := httptest.NewRecorder()
 
-		handler.AddNewProduct()(res, req)
+		middleware.MiddelwareAuthentication(handler.AddNewProduct()).ServeHTTP(res, req)
 
 		/* Expected values definition */
 		expectedCode := http.StatusUnauthorized
@@ -409,7 +410,7 @@ func TestDeleteProduct(t *testing.T) {
 		req = addURLParams(req, map[string]string{"id": "1"})
 		res := httptest.NewRecorder()
 
-		handler.DeleteProduct()(res, req)
+		middleware.MiddelwareAuthentication(handler.DeleteProduct()).ServeHTTP(res, req)
 
 		/* Expected values definition */
 		expectedCode := http.StatusUnauthorized
@@ -590,7 +591,7 @@ func TestUpdateProduct(t *testing.T) {
 		req = addURLParams(req, map[string]string{"id": "1"})
 		res := httptest.NewRecorder()
 
-		handler.UpdateProduct()(res, req)
+		middleware.MiddelwareAuthentication(handler.UpdateProduct()).ServeHTTP(res, req)
 
 		/* Expected values definition */
 		expectedCode := http.StatusUnauthorized
