@@ -74,7 +74,9 @@ func (p *ProductHandler) GetAllProducts() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		productsJSON := p.ProductService.GetAllProducts()
 		/* Send to the client all the products */
-		response.JSON(w, http.StatusOK, productsJSON)
+		response.JSON(w, http.StatusOK, map[string]any{
+			"data": productsJSON,
+		})
 	}
 }
 
@@ -105,7 +107,9 @@ func (p *ProductHandler) GetProductByID() http.HandlerFunc {
 		}
 
 		/* Send the product as response */
-		response.JSON(w, http.StatusOK, product)
+		response.JSON(w, http.StatusOK, map[string]any{
+			"data": product,
+		})
 	}
 }
 
@@ -250,6 +254,9 @@ func (p *ProductHandler) UpdateProduct() http.HandlerFunc {
 			case errors.Is(err, internal.ErrProductAlreadyExists):
 				response.Text(w, http.StatusBadRequest, "Product code already exists.")
 				return
+			case errors.Is(err, internal.ErrProductNotExists):
+				response.Text(w, http.StatusNotFound, "Product not found.")
+				return
 			default:
 				response.Text(w, http.StatusInternalServerError, "Internal server error.")
 				return
@@ -257,7 +264,7 @@ func (p *ProductHandler) UpdateProduct() http.HandlerFunc {
 		}
 
 		/* Send the response to the client */
-		response.JSON(w, http.StatusCreated, map[string]any{
+		response.JSON(w, http.StatusOK, map[string]any{
 			"data":    product,
 			"message": "Product updated successfully.",
 		})
@@ -377,6 +384,6 @@ func (p *ProductHandler) DeleteProduct() http.HandlerFunc {
 			}
 		}
 		/* Send the response to the client */
-		response.Text(w, http.StatusOK, "Product deleted successfully.")
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

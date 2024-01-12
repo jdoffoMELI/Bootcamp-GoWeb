@@ -174,6 +174,8 @@ func (p *ProductServiceDefault) UpdateProduct(product *internal.TProduct) error 
 	/* Insert the new product into the repository */
 	if err := p.repository.UpdateProduct(product); err == internal.ErrProductCodeAlreadyExists {
 		return internal.ErrProductAlreadyExists
+	} else if err == internal.ErrProductNotFound {
+		return internal.ErrProductNotExists
 	} else {
 		return err
 	}

@@ -1,0 +1,1 @@
+[{"id":1,"name":"Product 1","quantity":10,"code_value":"AX01","is_published":false,"expiration":"11/11/2001","price":10.5},{"id":2,"name":"Product 2","quantity":20,"code_value":"AX02","is_published":true,"expiration":"11/11/2002","price":20.5}]

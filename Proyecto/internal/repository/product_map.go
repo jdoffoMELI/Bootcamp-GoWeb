@@ -2,6 +2,7 @@ package repository
 
 import (
 	"proyecto/internal"
+	"sort"
 )
 
 type ProductMap struct {
@@ -36,6 +37,10 @@ func (p *ProductMap) GetAllProducts() []internal.TProduct {
 	for _, product := range productMap {
 		productSlice = append(productSlice, product)
 	}
+
+	sort.Slice(productSlice, func(i, j int) bool {
+		return productSlice[i].ID < productSlice[j].ID
+	})
 
 	return productSlice
 }
