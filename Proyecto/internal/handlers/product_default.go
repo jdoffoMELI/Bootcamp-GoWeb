@@ -331,6 +331,9 @@ func (p *ProductHandler) UpdateProductPartial() http.HandlerFunc {
 			case errors.Is(err, internal.ErrProductNotExists):
 				response.Text(w, http.StatusNotFound, "Product not found.")
 				return
+			case errors.Is(err, internal.ErrProductAlreadyExists):
+				response.Text(w, http.StatusBadRequest, "Product code already exists.")
+				return
 			default:
 				response.Text(w, http.StatusInternalServerError, "Internal server error.")
 				return

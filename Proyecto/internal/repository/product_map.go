@@ -5,23 +5,18 @@ import (
 )
 
 type ProductMap struct {
-	db     map[int]internal.TProduct // Database [product's id] -> product
-	lastID int                       // Last product id used
+	storage internal.ProductStorage // Storage
 }
 
-// NewProductMap creates a new ProductMap instance
-// NewProductMap(db map[int]internal.TProduct, lastID int) -> *ProductMap
+// NewProductMap creates a new ProductMap
+// NewProductMap(storage internal.ProductStorage) -> *ProductMap
 // Args:
-//		db:	 Database of products
-//		lastID: Last product id used on the database
+//		storage: Product storage
 // Return:
-//		*ProductMap: New ProductMap instance
+//		*ProductMap: New ProductMap
 
-func NewProductMap(db map[int]internal.TProduct, lastID int) *ProductMap {
-	return &ProductMap{
-		db:     db,
-		lastID: lastID,
-	}
+func NewProductMap(storage internal.ProductStorage) *ProductMap {
+	return &ProductMap{storage: storage}
 }
 
 // GetAllProducts returns the database of products
@@ -30,10 +25,18 @@ func NewProductMap(db map[int]internal.TProduct, lastID int) *ProductMap {
 //		internal.Tproduct: Database of products
 
 func (p *ProductMap) GetAllProducts() []internal.TProduct {
+	/* Get the data from the storage */
+	productMap, err := p.storage.GetAll()
+	if err != nil {
+		panic(err)
+	}
+
+	/* Convert the map to a slice */
 	var productSlice []internal.TProduct
-	for _, product := range p.db {
+	for _, product := range productMap {
 		productSlice = append(productSlice, product)
 	}
+
 	return productSlice
 }
 
@@ -46,7 +49,14 @@ func (p *ProductMap) GetAllProducts() []internal.TProduct {
 //		error: 			   Error raised during the execution (if exists)
 
 func (p *ProductMap) GetProductByID(id int) (internal.TProduct, error) {
-	if product, ok := p.db[id]; !ok {
+	/* Get the data from the storage */
+	db, err := p.storage.GetAll()
+	if err != nil {
+		return internal.TProduct{}, internal.ErrStorageError
+	}
+
+	/* Check if the product exists */
+	if product, ok := db[id]; !ok {
 		return internal.TProduct{}, internal.ErrProductNotFound
 	} else {
 		return product, nil
@@ -61,8 +71,15 @@ func (p *ProductMap) GetProductByID(id int) (internal.TProduct, error) {
 //		[]internal.TProduct: Slice of products with a price greater than the given price
 
 func (p *ProductMap) GetProductByPriceGt(price float64) []internal.TProduct {
+	/* Get the data from the storage */
+	db, err := p.storage.GetAll()
+	if err != nil {
+		panic(err)
+	}
+
+	/* Filter the products by price */
 	var productSlice []internal.TProduct
-	for _, product := range p.db {
+	for _, product := range db {
 		if product.Price > price {
 			productSlice = append(productSlice, product)
 		}
@@ -74,16 +91,34 @@ func (p *ProductMap) GetProductByPriceGt(price float64) []internal.TProduct {
 // productCodeExist(code string) -> bool
 // Args:
 //		code: Product's code to check
+//		db:   Database of products
 // Return:
 //		bool: True if the product's code already exists in the database, false otherwise
 
-func (p *ProductMap) productCodeExist(code string) bool {
-	for _, value := range p.db {
-		if value.CodeValue == code {
+func (p *ProductMap) productCodeExist(product internal.TProduct, db map[int]internal.TProduct) bool {
+	for _, value := range db {
+		if value.CodeValue == product.CodeValue && product.ID != value.ID {
 			return true
 		}
 	}
 	return false
+}
+
+// getNewID returns a new id for a product
+// getNewID(db map[int]internal.TProduct) -> int
+// Args:
+//		db: Database of products
+// Return:
+//		int: New id for a product
+
+func getNewID(db map[int]internal.TProduct) int {
+	var lastID int
+	for key := range db {
+		if key > lastID {
+			lastID = key
+		}
+	}
+	return lastID + 1
 }
 
 // InsertNewProduct inserts a new product in the database
@@ -94,15 +129,27 @@ func (p *ProductMap) productCodeExist(code string) bool {
 //		error: Error raised during the execution (if exists)
 
 func (p *ProductMap) InsertNewProduct(product *internal.TProduct) error {
+	/* Get the data from the storage */
+	db, err := p.storage.GetAll()
+	if err != nil {
+		return internal.ErrStorageError
+	}
+
 	/* Check if the product's code already exist */
-	if p.productCodeExist(product.CodeValue) {
+	if p.productCodeExist(*product, db) {
 		return internal.ErrProductCodeAlreadyExists
 	}
 
 	/* Insert the new product */
-	p.lastID++                // Update the last ID used
-	product.ID = p.lastID     // Update the product's ID
-	p.db[p.lastID] = *product // Insert the new product
+	newID := getNewID(db) // Get a new id for the product
+	product.ID = newID    // Update the product's ID
+	db[newID] = *product  // Insert the new product
+
+	/* Save the changes in the storage */
+	if err = p.storage.WriteAll(db); err != nil {
+		return internal.ErrStorageError
+	}
+
 	return nil
 }
 
@@ -116,18 +163,31 @@ func (p *ProductMap) InsertNewProduct(product *internal.TProduct) error {
 //
 //	error: Error raised during the execution (if exists)
 func (p *ProductMap) UpdateProduct(product *internal.TProduct) error {
+	/* Get the data from the storage */
+	db, err := p.storage.GetAll()
+	if err != nil {
+		return internal.ErrStorageError
+	}
+
 	/* Check if the product exists */
-	_, ok := p.db[product.ID]
+	_, ok := db[product.ID]
 	if !ok {
 		return internal.ErrProductNotFound
 	}
 
 	/* Check for code value consistency */
-	if p.productCodeExist(product.CodeValue) {
+	if p.productCodeExist(*product, db) {
 		return internal.ErrProductCodeAlreadyExists
 	}
+
 	/* Update the product */
-	p.db[product.ID] = *product
+	db[product.ID] = *product
+
+	/* Save the changes in the storage */
+	if err = p.storage.WriteAll(db); err != nil {
+		return internal.ErrStorageError
+	}
+
 	return nil
 }
 
@@ -139,10 +199,21 @@ func (p *ProductMap) UpdateProduct(product *internal.TProduct) error {
 //		error: Error raised during the execution (if exists)
 
 func (p *ProductMap) DeleteProduct(id int) error {
-	if _, ok := p.db[id]; !ok {
-		return internal.ErrProductNotFound
-	} else {
-		delete(p.db, id)
-		return nil
+	/* Get the data from the storage */
+	db, err := p.storage.GetAll()
+	if err != nil {
+		return internal.ErrStorageError
 	}
+
+	/* Check if the product exists */
+	if _, ok := db[id]; !ok {
+		return internal.ErrProductNotFound
+	}
+
+	/* Delete the product */
+	delete(db, id)
+	if err = p.storage.WriteAll(db); err != nil {
+		return internal.ErrStorageError
+	}
+	return nil
 }

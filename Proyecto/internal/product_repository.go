@@ -8,6 +8,7 @@ import (
 var (
 	ErrProductNotFound          = errors.New("product not found")
 	ErrProductCodeAlreadyExists = errors.New("product code already exists")
+	ErrStorageError             = errors.New("storage error")
 )
 
 /* Product repository definition */
